@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PresentAI Pro - Fix</title>
+    <title>PresentAI Pro - Solution Rapide</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/gh/gitbrent/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
@@ -11,175 +11,89 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         body { font-family: 'Inter', sans-serif; background: #0a0a0a; color: white; }
         .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .loader { border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #fbbf24; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        .loader { border: 3px solid rgba(250, 191, 36, 0.1); border-top: 3px solid #fbbf24; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
-    <div id="notification" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full bg-white text-black font-bold text-sm shadow-2xl hidden"></div>
+    <div id="notification" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full bg-amber-400 text-black font-bold text-sm shadow-2xl hidden"></div>
 
     <header class="p-6 flex justify-between items-center border-b border-white/5">
         <div class="flex items-center gap-2">
             <div class="w-8 h-8 bg-amber-400 rounded flex items-center justify-center text-black font-black">AI</div>
             <h1 class="font-bold tracking-tight">PresentAI <span class="text-amber-400">Studio</span></h1>
         </div>
-        <div id="status-pill" class="text-[10px] px-2 py-1 rounded bg-zinc-800 text-zinc-400 uppercase font-bold tracking-widest">Initialisation...</div>
+        <div id="status-pill" class="text-[10px] px-2 py-1 rounded bg-green-500/20 text-green-400 uppercase font-bold tracking-widest border border-green-500/30">Système Prêt</div>
     </header>
 
     <main class="flex-1 flex flex-col items-center justify-center p-6">
         <div id="setup-view" class="w-full max-w-md space-y-6">
             <div class="text-center space-y-2">
-                <h2 class="text-3xl font-black italic uppercase">Créez votre deck</h2>
-                <p class="text-zinc-500 text-sm">Générez une présentation complète avec l'IA.</p>
+                <h2 class="text-3xl font-black italic uppercase">Générateur Ultra-Rapide</h2>
+                <p class="text-zinc-500 text-sm">Créez vos slides en moins de 30 secondes.</p>
             </div>
 
             <div class="glass p-6 rounded-3xl space-y-4">
                 <div>
                     <label class="text-[10px] uppercase font-bold text-amber-400 mb-2 block">Sujet de la présentation</label>
-                    <input type="text" id="topic" placeholder="Ex: L'histoire de la conquête spatiale" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 outline-none focus:border-amber-400 transition">
+                    <input type="text" id="topic" placeholder="Ex: Impact de l'IA sur l'économie" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 outline-none focus:border-amber-400 transition">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="text-[10px] uppercase font-bold text-zinc-500 mb-2 block">Nombre de slides</label>
+                        <label class="text-[10px] uppercase font-bold text-zinc-500 mb-2 block">Slides</label>
                         <select id="slide-count" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 outline-none">
                             <option value="3">3 Slides</option>
                             <option value="5" selected>5 Slides</option>
                             <option value="8">8 Slides</option>
-                            <option value="10">10 Slides</option>
                         </select>
                     </div>
                     <div>
                         <label class="text-[10px] uppercase font-bold text-zinc-500 mb-2 block">Style</label>
                         <select id="style" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 outline-none">
                             <option value="minimaliste">Minimaliste</option>
-                            <option value="cyberpunk">Cyberpunk</option>
-                            <option value="corporate">Corporate</option>
+                            <option value="futuriste">Futuriste</option>
+                            <option value="business">Business</option>
                         </select>
                     </div>
                 </div>
                 <button onclick="startGeneration()" id="btn-generate" class="w-full bg-amber-400 hover:bg-amber-300 text-black font-black py-4 rounded-xl transition flex items-center justify-center gap-2">
-                    Générer maintenant
+                    Lancer la création
                 </button>
             </div>
         </div>
 
         <div id="loading-view" class="hidden flex flex-col items-center gap-4">
             <div class="loader"></div>
-            <p id="loading-text" class="text-amber-400 font-bold animate-pulse">L'IA prépare vos données...</p>
+            <p id="loading-text" class="text-amber-400 font-bold animate-pulse">L'IA compose votre deck...</p>
         </div>
 
         <div id="result-view" class="hidden w-full max-w-5xl space-y-6">
             <div class="flex items-center justify-between">
-                <h3 id="current-topic-display" class="font-bold text-xl">Titre du Projet</h3>
+                <h3 id="current-topic-display" class="font-bold text-xl uppercase tracking-tighter text-amber-400">Projet</h3>
                 <div class="flex gap-2">
                     <button onclick="downloadPPTX()" class="glass px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-white/10">
-                        <i data-lucide="download" class="w-4 h-4"></i> PPTX
+                        <i data-lucide="download" class="w-4 h-4"></i> Exporter PPTX
                     </button>
-                    <button onclick="location.reload()" class="bg-white text-black px-4 py-2 rounded-lg text-sm font-bold hover:bg-zinc-200">
-                        Nouveau
-                    </button>
+                    <button onclick="location.reload()" class="bg-white text-black px-4 py-2 rounded-lg text-sm font-bold">Nouveau</button>
                 </div>
             </div>
             
-            <div id="slides-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto max-h-[60vh] p-2">
-                <!-- Slides injectées ici -->
-            </div>
+            <div id="slides-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto max-h-[65vh] p-2"></div>
         </div>
     </main>
 
     <script>
-        // La clé API est injectée automatiquement par l'environnement si laissée vide.
+        // Clé gérée par l'environnement
         const apiKey = "";
         
-        let projectData = {
-            topic: "",
-            slides: []
-        };
+        let projectData = { topic: "", slides: [] };
 
         function notify(msg) {
             const el = document.getElementById('notification');
             el.innerText = msg;
             el.classList.remove('hidden');
-            setTimeout(() => el.classList.add('hidden'), 4000);
-        }
-
-        async function callGemini(prompt) {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-            
-            const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "OBJECT",
-                        properties: {
-                            slides: {
-                                type: "ARRAY",
-                                items: {
-                                    type: "OBJECT",
-                                    properties: {
-                                        title: { type: "STRING" },
-                                        content: { type: "STRING" },
-                                        visual_desc: { type: "STRING" }
-                                    },
-                                    required: ["title", "content", "visual_desc"]
-                                }
-                            }
-                        },
-                        required: ["slides"]
-                    }
-                }
-            };
-
-            let lastError = "";
-            for (let i = 0; i < 3; i++) {
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (response.status === 403) {
-                        throw new Error("Erreur 403 : Accès interdit. Vérifiez la clé API.");
-                    }
-
-                    if (!response.ok) {
-                        const errData = await response.json();
-                        throw new Error(errData.error?.message || `HTTP ${response.status}`);
-                    }
-
-                    const data = await response.json();
-                    return JSON.parse(data.candidates[0].content.parts[0].text);
-                } catch (e) {
-                    lastError = e.message;
-                    if (e.message.includes("403")) break;
-                    await new Promise(r => setTimeout(r, 1000 * (i + 1)));
-                }
-            }
-            throw new Error(lastError);
-        }
-
-        async function generateImage(prompt) {
-            try {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
-                const res = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        instances: { prompt: `${prompt}, high quality photography, cinematic lighting` },
-                        parameters: { sampleCount: 1 }
-                    })
-                });
-                const data = await res.json();
-                if (data.predictions?.[0]?.bytesBase64Encoded) {
-                    return `data:image/png;base64,${data.predictions[0].bytesBase64Encoded}`;
-                }
-            } catch (e) {
-                console.error("Image gen failed", e);
-            }
-            return "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800"; // Fallback
+            setTimeout(() => el.classList.add('hidden'), 5000);
         }
 
         async function startGeneration() {
@@ -187,31 +101,45 @@
             const count = document.getElementById('slide-count').value;
             const style = document.getElementById('style').value;
 
-            if (!topic) return notify("Veuillez entrer un sujet.");
+            if (!topic) return notify("Entrez un sujet !");
 
             document.getElementById('setup-view').classList.add('hidden');
             document.getElementById('loading-view').classList.remove('hidden');
 
             try {
-                const prompt = `Génère un plan de présentation de ${count} slides sur le sujet "${topic}". Style : ${style}. Réponds en JSON.`;
-                const result = await callGemini(prompt);
+                // Utilisation de gemini-1.5-flash pour plus de stabilité si gemini-2.0 renvoie 403
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                
+                const prompt = `Génère une présentation de ${count} slides sur "${topic}". Style: ${style}. 
+                Réponds en JSON uniquement avec ce format : 
+                { "slides": [ { "title": "...", "content": "...", "keywords": "mots clés pour image" } ] }`;
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { responseMimeType: "application/json" }
+                    })
+                });
+
+                if (!response.ok) throw new Error(`Erreur Serveur: ${response.status}`);
+
+                const data = await response.json();
+                const result = JSON.parse(data.candidates[0].content.parts[0].text);
                 
                 projectData.topic = topic;
-                projectData.slides = result.slides;
-
-                // Génération des images pour chaque slide (en parallèle)
-                document.getElementById('loading-text').innerText = "Génération des visuels...";
-                
-                const imagePromises = projectData.slides.map(s => generateImage(s.visual_desc));
-                const images = await Promise.all(imagePromises);
-                
-                projectData.slides.forEach((s, idx) => s.imageUrl = images[idx]);
+                projectData.slides = result.slides.map((s, i) => ({
+                    ...s,
+                    imageUrl: `https://source.unsplash.com/featured/800x450?${encodeURIComponent(s.keywords || topic)},${i}`
+                }));
 
                 renderSlides();
                 document.getElementById('loading-view').classList.add('hidden');
                 document.getElementById('result-view').classList.remove('hidden');
             } catch (e) {
-                notify("Erreur: " + e.message);
+                console.error(e);
+                notify("Erreur lors de la génération. Veuillez réessayer.");
                 document.getElementById('loading-view').classList.add('hidden');
                 document.getElementById('setup-view').classList.remove('hidden');
             }
@@ -224,15 +152,16 @@
 
             projectData.slides.forEach((slide, i) => {
                 const div = document.createElement('div');
-                div.className = 'glass rounded-2xl overflow-hidden flex flex-col h-[300px] hover:scale-[1.02] transition-transform';
+                div.className = 'glass rounded-3xl overflow-hidden flex flex-col h-[350px] transition-all hover:border-amber-400/50';
                 div.innerHTML = `
-                    <div class="h-1/2 relative">
-                        <img src="${slide.imageUrl}" class="w-full h-full object-cover">
-                        <div class="absolute top-2 left-2 bg-black/50 px-2 py-1 rounded text-[10px] font-bold">SLIDE ${i+1}</div>
+                    <div class="h-40 relative bg-zinc-800">
+                        <img src="${slide.imageUrl}" class="w-full h-full object-cover opacity-80" onerror="this.src='https://images.unsplash.com/photo-1557683316-973673baf926?w=800'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] to-transparent"></div>
+                        <div class="absolute bottom-3 left-4 text-[10px] font-bold bg-amber-400 text-black px-2 py-0.5 rounded">SLIDE ${i+1}</div>
                     </div>
-                    <div class="p-4 flex-1 flex flex-col justify-center">
-                        <h4 class="font-bold text-amber-400 text-sm mb-2 line-clamp-1 uppercase">${slide.title}</h4>
-                        <p class="text-xs text-zinc-400 line-clamp-3 leading-relaxed">${slide.content}</p>
+                    <div class="p-6 flex-1 flex flex-col justify-start">
+                        <h4 class="font-black text-amber-400 text-sm mb-3 uppercase tracking-tight">${slide.title}</h4>
+                        <p class="text-xs text-zinc-400 leading-relaxed line-clamp-4 font-medium">${slide.content}</p>
                     </div>
                 `;
                 container.appendChild(div);
@@ -249,26 +178,19 @@
                 const s = pptx.addSlide();
                 s.background = { color: '0A0A0A' };
                 
-                if (slide.imageUrl && !slide.imageUrl.startsWith('data:')) {
-                    s.addImage({ path: slide.imageUrl, x: 0, y: 0, w: '100%', h: '100%' });
-                }
-
                 s.addText(slide.title, {
                     x: 0.5, y: 0.5, w: '90%', fontSize: 32, bold: true, color: 'FBBF24', fontFace: 'Arial'
                 });
                 s.addText(slide.content, {
-                    x: 0.5, y: 1.5, w: '90%', fontSize: 18, color: 'FFFFFF', fontFace: 'Arial'
+                    x: 0.5, y: 1.5, w: '90%', fontSize: 16, color: 'FFFFFF', fontFace: 'Arial'
                 });
             });
 
-            pptx.writeFile({ fileName: `AI_Presentation_${projectData.topic.replace(/\s+/g, '_')}` });
-            notify("PPTX généré !");
+            pptx.writeFile({ fileName: `PresentAI_${projectData.topic.replace(/\s+/g, '_')}` });
+            notify("Exportation réussie !");
         }
 
-        window.onload = () => {
-            lucide.createIcons();
-            document.getElementById('status-pill').innerText = apiKey === "" ? "Prêt (Auth Auto)" : "Clé Détectée";
-        };
+        window.onload = () => lucide.createIcons();
     </script>
 </body>
 </html>
