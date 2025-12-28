@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PresentAI Pro - Solution Rapide</title>
+    <title>PresentAI Pro - GitHub Ready</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/gh/gitbrent/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
@@ -24,14 +24,17 @@
             <div class="w-8 h-8 bg-amber-400 rounded flex items-center justify-center text-black font-black">AI</div>
             <h1 class="font-bold tracking-tight">PresentAI <span class="text-amber-400">Studio</span></h1>
         </div>
-        <div id="status-pill" class="text-[10px] px-2 py-1 rounded bg-green-500/20 text-green-400 uppercase font-bold tracking-widest border border-green-500/30">Système Prêt</div>
+        <div class="flex items-center gap-4">
+            <input type="password" id="manual-api-key" placeholder="Collez votre clé API Gemini ici" class="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-amber-400 w-48 transition-all">
+            <div id="status-pill" class="text-[10px] px-2 py-1 rounded bg-zinc-800 text-zinc-400 uppercase font-bold tracking-widest border border-white/5">Configuration GitHub</div>
+        </div>
     </header>
 
     <main class="flex-1 flex flex-col items-center justify-center p-6">
         <div id="setup-view" class="w-full max-w-md space-y-6">
             <div class="text-center space-y-2">
-                <h2 class="text-3xl font-black italic uppercase">Générateur Ultra-Rapide</h2>
-                <p class="text-zinc-500 text-sm">Créez vos slides en moins de 30 secondes.</p>
+                <h2 class="text-3xl font-black italic uppercase">Générateur pour GitHub</h2>
+                <p class="text-zinc-500 text-sm">Créez vos slides en utilisant votre propre clé API.</p>
             </div>
 
             <div class="glass p-6 rounded-3xl space-y-4">
@@ -61,6 +64,7 @@
                     Lancer la création
                 </button>
             </div>
+            <p class="text-center text-[10px] text-zinc-600 uppercase tracking-widest">Fonctionne avec Gemini 1.5 Flash</p>
         </div>
 
         <div id="loading-view" class="hidden flex flex-col items-center gap-4">
@@ -84,8 +88,12 @@
     </main>
 
     <script>
-        // Clé gérée par l'environnement
-        const apiKey = "";
+        // Sur GitHub, l'utilisateur doit fournir sa propre clé
+        function getApiKey() {
+            const manualKey = document.getElementById('manual-api-key').value.trim();
+            // Si une clé est saisie manuellement, on l'utilise. Sinon on laisse vide pour l'auto-injection locale.
+            return manualKey || "";
+        }
         
         let projectData = { topic: "", slides: [] };
 
@@ -97,18 +105,20 @@
         }
 
         async function startGeneration() {
+            const key = getApiKey();
             const topic = document.getElementById('topic').value.trim();
             const count = document.getElementById('slide-count').value;
             const style = document.getElementById('style').value;
 
+            if (!key) return notify("Veuillez saisir votre clé API Gemini en haut à droite !");
             if (!topic) return notify("Entrez un sujet !");
 
             document.getElementById('setup-view').classList.add('hidden');
             document.getElementById('loading-view').classList.remove('hidden');
 
             try {
-                // Utilisation de gemini-1.5-flash pour plus de stabilité si gemini-2.0 renvoie 403
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                // Utilisation de gemini-1.5-flash pour une stabilité maximale sur GitHub
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
                 
                 const prompt = `Génère une présentation de ${count} slides sur "${topic}". Style: ${style}. 
                 Réponds en JSON uniquement avec ce format : 
@@ -123,6 +133,7 @@
                     })
                 });
 
+                if (response.status === 403) throw new Error("Clé API invalide ou non autorisée (403).");
                 if (!response.ok) throw new Error(`Erreur Serveur: ${response.status}`);
 
                 const data = await response.json();
@@ -131,15 +142,21 @@
                 projectData.topic = topic;
                 projectData.slides = result.slides.map((s, i) => ({
                     ...s,
-                    imageUrl: `https://source.unsplash.com/featured/800x450?${encodeURIComponent(s.keywords || topic)},${i}`
+                    imageUrl: `https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80` 
                 }));
+
+                // Tentative d'images par mots-clés via Unsplash (gratuit et sans clé)
+                projectData.slides.forEach((s, i) => {
+                    const kw = s.keywords || topic;
+                    s.imageUrl = `https://images.unsplash.com/featured/800x450?${encodeURIComponent(kw)}&sig=${i}`;
+                });
 
                 renderSlides();
                 document.getElementById('loading-view').classList.add('hidden');
                 document.getElementById('result-view').classList.remove('hidden');
             } catch (e) {
                 console.error(e);
-                notify("Erreur lors de la génération. Veuillez réessayer.");
+                notify("Erreur : " + e.message);
                 document.getElementById('loading-view').classList.add('hidden');
                 document.getElementById('setup-view').classList.remove('hidden');
             }
@@ -187,7 +204,7 @@
             });
 
             pptx.writeFile({ fileName: `PresentAI_${projectData.topic.replace(/\s+/g, '_')}` });
-            notify("Exportation réussie !");
+            notify("Exportation PPTX lancée !");
         }
 
         window.onload = () => lucide.createIcons();
