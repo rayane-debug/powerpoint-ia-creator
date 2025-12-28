@@ -163,7 +163,9 @@
     </main>
 
     <script>
-        const apiKey = ""; // <--- Insérez votre clé API ici pour activer la génération
+        // --- IMPORTANT : La clé API est gérée automatiquement par l'environnement Canvas ---
+        const apiKey = ""; 
+        
         let state = { mode: 'pc', slides: [], current: 0, topic: '' };
 
         function selectMode(m) {
@@ -179,7 +181,7 @@
             const t = document.getElementById('toast');
             t.innerText = m;
             t.style.display = 'block';
-            setTimeout(() => t.style.display = 'none', 3000);
+            setTimeout(() => t.style.display = 'none', 5000);
         }
 
         async function fetchWithRetry(url, options, retries = 5, backoff = 1000) {
@@ -187,12 +189,15 @@
                 try {
                     const response = await fetch(url, options);
                     if (response.status === 403) {
-                        throw new Error("ERREUR 403: Accès refusé. Vérifiez votre clé API.");
+                        throw new Error("ERREUR 403: Accès refusé. La clé API est absente ou invalide.");
                     }
-                    if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+                    if (!response.ok) {
+                        const errData = await response.json().catch(() => ({}));
+                        throw new Error(errData.error?.message || `HTTP Error ${response.status}`);
+                    }
                     return await response.json();
                 } catch (err) {
-                    if (i === retries - 1) throw err;
+                    if (i === retries - 1 || err.message.includes("403")) throw err;
                     await new Promise(r => setTimeout(r, backoff * Math.pow(2, i)));
                 }
             }
@@ -209,29 +214,36 @@
             state.topic = topic;
             toggleView('view-loading');
             
-            const prompt = `Génère ${count} slides. Sujet: ${topic}. Style visuel: ${style}. Points: ${points}. Format JSON: { "slides": [ { "titre": "...", "texte": "...", "imgPrompt": "..." } ] }`;
+            const systemPrompt = "Tu es un expert en design de présentations premium. Réponds uniquement en JSON valide.";
+            const userQuery = `Génère une structure de présentation de ${count} slides sur le sujet : "${topic}". Style visuel souhaité : ${style}. Points à inclure : ${points}. Format JSON : { "slides": [ { "titre": "court et percutant", "texte": "un paragraphe descriptif", "imgPrompt": "un prompt détaillé pour générer une image réaliste et artistique liée au titre" } ] }`;
 
             try {
-                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                
+                const data = await fetchWithRetry(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }],
+                        contents: [{ parts: [{ text: userQuery }] }],
+                        systemInstruction: { parts: [{ text: systemPrompt }] },
                         generationConfig: { responseMimeType: "application/json" }
                     })
                 });
                 
-                state.slides = JSON.parse(data.candidates[0].content.parts[0].text).slides;
+                const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!resultText) throw new Error("Réponse vide de l'IA.");
+                
+                state.slides = JSON.parse(resultText).slides;
 
-                document.getElementById('loading-msg').innerText = "Rendu Nano Banana...";
+                document.getElementById('loading-msg').innerText = "Rendu Nano Banana (Imagen 4.0)...";
                 state.slides[0].imageUrl = await getAIImage(state.slides[0].imgPrompt);
                 
                 render();
                 toggleView('view-result');
                 preloadRemaining();
             } catch (e) {
-                console.error(e);
-                showToast(e.message.includes("403") ? "Erreur 403 : Vérifiez votre clé API." : "Erreur de génération.");
+                console.error("Détails de l'erreur:", e);
+                showToast(`Erreur : ${e.message}`);
                 toggleView('view-form');
             }
         }
@@ -239,23 +251,36 @@
         async function getAIImage(p) {
             try {
                 const aspect = state.mode === 'pc' ? '16:9 landscape' : '9:16 portrait';
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`, {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
+                
+                const res = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ instances: [{ prompt: `${p}, style: ${state.topic}, ${aspect}, cinematic` }] })
+                    body: JSON.stringify({ 
+                        instances: { prompt: `${p}, style ${state.style}, high quality, cinematic, ${aspect}` },
+                        parameters: { sampleCount: 1 }
+                    })
                 });
+                
                 const d = await res.json();
                 if (d.predictions && d.predictions[0]) {
                     return `data:image/png;base64,${d.predictions[0].bytesBase64Encoded}`;
                 }
-                throw new Error("No image");
-            } catch (e) { return "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800"; }
+                throw new Error("Échec génération image");
+            } catch (e) { 
+                console.warn("Image fallback utilisée");
+                return "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800"; 
+            }
         }
 
         async function preloadRemaining() {
             for(let i=1; i < state.slides.length; i++) {
-                state.slides[i].imageUrl = await getAIImage(state.slides[i].imgPrompt);
-                if(state.current === i) render();
+                try {
+                    state.slides[i].imageUrl = await getAIImage(state.slides[i].imgPrompt);
+                    if(state.current === i) render();
+                } catch(e) {
+                    state.slides[i].imageUrl = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800";
+                }
             }
         }
 
@@ -274,12 +299,12 @@
                         <p class="text-lg text-zinc-500 leading-relaxed font-medium">${s.texte}</p>
                     </div>
                     <div class="w-2/5 relative bg-zinc-100">
-                        <img src="${s.imageUrl || ''}" class="w-full h-full object-cover">
+                        <img src="${s.imageUrl || ''}" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800'">
                     </div>
                 </div>` : `
                 <div class="slide-mobile fade-in">
                     <div class="h-[45%] relative bg-zinc-200">
-                        <img src="${s.imageUrl || ''}" class="w-full h-full object-cover">
+                        <img src="${s.imageUrl || ''}" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800'">
                     </div>
                     <div class="flex-1 p-8 flex flex-col justify-start bg-white">
                         <div class="w-10 h-1 bg-yellow-400 mb-6 rounded-full"></div>
@@ -292,7 +317,7 @@
 
         function exportToGoogleSlides() {
             if(!state.slides.length) return;
-            showToast("Génération du fichier PPTX...");
+            showToast("Génération du fichier PPTX en cours...");
 
             const pptx = new PptxGenJS();
             pptx.title = state.topic;
@@ -334,8 +359,8 @@
                 });
             });
 
-            pptx.writeFile({ fileName: `Projet_${state.topic.replace(/\s+/g, '_')}` })
-                .then(() => showToast("Téléchargement lancé !"))
+            pptx.writeFile({ fileName: `PresentAI_${state.topic.replace(/\s+/g, '_')}` })
+                .then(() => showToast("Téléchargement réussi !"))
                 .catch((err) => {
                     console.error("Erreur Export:", err);
                     showToast("Erreur lors de l'export.");
@@ -349,7 +374,7 @@
             el.select();
             document.execCommand('copy');
             document.body.removeChild(el);
-            showToast("Lien copié !");
+            showToast("Lien copié dans le presse-papier !");
         }
 
         function toggleView(id) {
