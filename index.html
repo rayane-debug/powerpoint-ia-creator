@@ -163,7 +163,7 @@
     </main>
 
     <script>
-        const apiKey = ""; // API Key fournie par l'environnement
+        const apiKey = ""; // <--- Insérez votre clé API ici pour activer la génération
         let state = { mode: 'pc', slides: [], current: 0, topic: '' };
 
         function selectMode(m) {
@@ -182,6 +182,22 @@
             setTimeout(() => t.style.display = 'none', 3000);
         }
 
+        async function fetchWithRetry(url, options, retries = 5, backoff = 1000) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status === 403) {
+                        throw new Error("ERREUR 403: Accès refusé. Vérifiez votre clé API.");
+                    }
+                    if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+                    return await response.json();
+                } catch (err) {
+                    if (i === retries - 1) throw err;
+                    await new Promise(r => setTimeout(r, backoff * Math.pow(2, i)));
+                }
+            }
+        }
+
         async function generateProject() {
             const topic = document.getElementById('topic').value.trim();
             const count = document.getElementById('slide-range').value;
@@ -196,7 +212,7 @@
             const prompt = `Génère ${count} slides. Sujet: ${topic}. Style visuel: ${style}. Points: ${points}. Format JSON: { "slides": [ { "titre": "...", "texte": "...", "imgPrompt": "..." } ] }`;
 
             try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -205,7 +221,6 @@
                     })
                 });
                 
-                const data = await res.json();
                 state.slides = JSON.parse(data.candidates[0].content.parts[0].text).slides;
 
                 document.getElementById('loading-msg').innerText = "Rendu Nano Banana...";
@@ -215,7 +230,8 @@
                 toggleView('view-result');
                 preloadRemaining();
             } catch (e) {
-                showToast("Erreur IA. Veuillez réessayer.");
+                console.error(e);
+                showToast(e.message.includes("403") ? "Erreur 403 : Vérifiez votre clé API." : "Erreur de génération.");
                 toggleView('view-form');
             }
         }
@@ -229,7 +245,10 @@
                     body: JSON.stringify({ instances: [{ prompt: `${p}, style: ${state.topic}, ${aspect}, cinematic` }] })
                 });
                 const d = await res.json();
-                return `data:image/png;base64,${d.predictions[0].bytesBase64Encoded}`;
+                if (d.predictions && d.predictions[0]) {
+                    return `data:image/png;base64,${d.predictions[0].bytesBase64Encoded}`;
+                }
+                throw new Error("No image");
             } catch (e) { return "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800"; }
         }
 
@@ -241,6 +260,7 @@
         }
 
         function render() {
+            if (!state.slides.length) return;
             const s = state.slides[state.current];
             const canvas = document.getElementById('canvas');
             document.getElementById('counter').innerText = `${state.current + 1}/${state.slides.length}`;
@@ -272,7 +292,7 @@
 
         function exportToGoogleSlides() {
             if(!state.slides.length) return;
-            showToast("Génération du fichier compatible Google Slides...");
+            showToast("Génération du fichier PPTX...");
 
             const pptx = new PptxGenJS();
             pptx.title = state.topic;
@@ -285,18 +305,13 @@
             state.slides.forEach(slide => {
                 const s = pptx.addSlide();
                 
-                // Fond - Nouvelle approche pour le chargement d'image base64
-                if(slide.imageUrl && slide.imageUrl.includes('base64,')) {
+                if(slide.imageUrl) {
                     try {
-                        // On passe l'URL data entière à la propriété "data" de PptxGenJS
-                        // La lib préfère souvent le format complet ou juste le base64. 
-                        // On va s'assurer qu'on utilise la méthode la plus robuste.
                         s.addImage({ 
-                            data: slide.imageUrl, 
+                            path: slide.imageUrl, 
                             x: 0, y: 0, w: '100%', h: '100%' 
                         });
                         
-                        // Overlay sombre pour lisibilité
                         s.addShape(pptx.ShapeType.rect, { 
                             x: 0, y: 0, w: '100%', h: '100%', 
                             fill: { color: '000000', alpha: 50 } 
@@ -306,27 +321,23 @@
                     }
                 }
 
-                // Titre
                 s.addText(slide.titre, {
                     x: 0.5, y: 0.5, w: '90%', 
                     fontSize: 32, bold: true, color: 'FACC15',
-                    fontFace: 'Arial',
-                    margin: 0.5
+                    fontFace: 'Arial'
                 });
 
-                // Corps
                 s.addText(slide.texte, {
                     x: 0.5, y: 1.8, w: '90%',
                     fontSize: 18, color: 'FFFFFF',
-                    fontFace: 'Arial',
-                    margin: 0.5
+                    fontFace: 'Arial'
                 });
             });
 
             pptx.writeFile({ fileName: `Projet_${state.topic.replace(/\s+/g, '_')}` })
                 .then(() => showToast("Téléchargement lancé !"))
                 .catch((err) => {
-                    console.error("Erreur Export PPTX:", err);
+                    console.error("Erreur Export:", err);
                     showToast("Erreur lors de l'export.");
                 });
         }
@@ -338,7 +349,7 @@
             el.select();
             document.execCommand('copy');
             document.body.removeChild(el);
-            showToast("Lien copié dans le presse-papier !");
+            showToast("Lien copié !");
         }
 
         function toggleView(id) {
